@@ -1,19 +1,18 @@
 {
   "name": "fin-sentence-type",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Negation detection for FIN NLP",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "ts-node test/test.ts",
+    "prepublish": "tsc && ts-node test/test.ts",
+    "build":"tsc"
   },
   "author": "Alex Corvi <alex@arrayy.com>",
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^7.0.11",
-    "finnlp": "^1.0.12"
-  },
-  "dependencies": {
     "finnlp": "^1.0.15"
   },
   "repository": {
