@@ -1,5 +1,5 @@
 {
-  "name": "fin-negation",
+  "name": "fin-sentence-type",
   "version": "1.0.0",
   "description": "Negation detection for FIN NLP",
   "main": "./dist/index.js",
@@ -10,9 +10,23 @@
   "author": "Alex Corvi <alex@arrayy.com>",
   "license": "MIT",
   "devDependencies": {
+    "@types/node": "^7.0.11",
     "finnlp": "^1.0.12"
   },
   "dependencies": {
     "finnlp": "^1.0.15"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FinNLP/fin-sentence-detector.git"
+  },
+  "keywords": [
+    "sentence",
+    "type",
+    "detection"
+  ],
+  "bugs": {
+    "url": "https://github.com/FinNLP/fin-sentence-detector/issues"
+  },
+  "homepage": "https://github.com/FinNLP/fin-sentence-detector#readme"
 }

@@ -1,20 +1,29 @@
-import {Fin} from "finnlp";
+import * as Fin from "finnlp";
 
-/**
- * 
- * Calculate negation
- * 
-**/
-export function sentenceType(this:Fin.FinReturn){
+declare module "finnlp" {
 
-	const interrogativeWTokens = ["which","who","what","whose","how","where"];
+	export interface SentenceTypeObject {
+		type:string;
+		confidence:number;
+	}
+
+	export interface Run {
+		sentenceType:(this:Fin.Run)=>SentenceTypeObject[][];
+	}
+}
+
+
+Fin.Run.prototype.sentenceType = function () {
+
+	const interrogativeWTokens = ["which","who","what","whose","how","where","when"];
 	const exclamatoryTokens = ["wow","ugh","oh"];
 	const imperativeAUXTokens = ["can","could","would","will"];
 	const beDerivatives = 	["be","been","being","was","am","is","are","were"];
 	const haveDerivatives = ["have","had","had","has","having"];
-	const didDerivatives = ["have","had","had","has","having"];
+	const didDerivatives = ["do","did","done","does","doing"];
 	const personalPronouns = ["i","you","he","she","it","we","they"];
 	const auxVerbs = ([] as string[]).concat(beDerivatives,didDerivatives,haveDerivatives);
+
 
 	const result:{
 		type:string,
@@ -22,6 +31,8 @@ export function sentenceType(this:Fin.FinReturn){
 	}[][] = [];
 
 	this.sentences.forEach((sentence,sentenceIndex)=>{
+
+		result[sentenceIndex] = [];
 
 		result[sentenceIndex][0] = {
 			type:"interrogative",
@@ -41,13 +52,16 @@ export function sentenceType(this:Fin.FinReturn){
 			confidence:0
 		};
 
+		
 		// constraints:
-		const tokens = this.tokens[sentenceIndex];
-		const tags = this.tags[sentenceIndex];
-		const deps = this.deps[sentenceIndex];
+		const tokens = sentence.tokens;
+		const tags = sentence.tags;
+		const deps = sentence.deps;
+		const scndLastToken = (tokens[tokens.length-2] || "").toLowerCase();
+		const scndLastLabel = (deps[deps.length-2] || {}).label;
+		const thrdLastToken = (tokens[tokens.length-3] || "").toLowerCase();
+		const thrdLastLabel = (deps[deps.length-3] || {}).label;
 		const sentenceEndToken = tokens[tokens.length-1].toLowerCase();
-		const sentenceBeforeEndToken = tokens[tokens.length-2].toLowerCase();
-		const sentenceBeforeEndLabel = deps[deps.length-2].label;
 		const sentenceStartToken = tokens[0].toLowerCase();
 		const rootIndex = deps.findIndex(x=>x.parent === -1);
 		const rootToken = tokens[rootIndex].toLowerCase();
@@ -63,7 +77,7 @@ export function sentenceType(this:Fin.FinReturn){
 				};
 			})
 			.filter(x=>x.parent === rootIndex);
-		const rootSubject = rootDirectChildren.find(x=>x.label === "NSUBJ");
+		const rootSubject = rootDirectChildren.find(x=>x.label.startsWith("NSUBJ"));
 		const rootClausalComplement = rootDirectChildren.find(x=>x.label.endsWith("COMP"));
 		const exclamatoryTokenIndex = tokens.map(x=>x.toLowerCase()).findIndex(x=>exclamatoryTokens.indexOf(x) > -1);
 		const possibleAUXIndex = tokens.findIndex(x=>auxVerbs.indexOf(x.toLowerCase())>-1);
@@ -94,7 +108,7 @@ export function sentenceType(this:Fin.FinReturn){
 		// root is a verb VBP or VB (at index 0 || or doesn't have a subject)
 		// it's not "be" derivative like: "am I too early"
 		// unless it's "be" in infinitive form
-		if((rootTag === "VBP" || rootTag === "VB") && (rootIndex === 0 || (!rootSubject)) && beDerivatives.indexOf(rootToken) > 0) {
+		if((rootTag === "VBP" || rootTag === "VB") && (rootIndex === 0 || (!rootSubject)) && beDerivatives.indexOf(rootToken) < 1) {
 			result[sentenceIndex][1].confidence = result[sentenceIndex][1].confidence + 80;
 		}
 
@@ -115,7 +129,7 @@ export function sentenceType(this:Fin.FinReturn){
 		// interrogative:
 		// starts with an auxillary
 		// but the root must have a subject
-		if(deps[0].label === "AUX" && rootSubject) {
+		if(deps[0].label.startsWith("AUX") && rootSubject) {
 			result[sentenceIndex][0].confidence = result[sentenceIndex][0].confidence + 70;
 		}
 
@@ -126,14 +140,15 @@ export function sentenceType(this:Fin.FinReturn){
 			result[sentenceIndex][0].confidence = result[sentenceIndex][0].confidence + 70;
 		}
 
+
 		// interrogative
 		// starts with interrogativeWTokens
-		// and have an auxVerbs before the root
+		// and have an auxVerbs before the root (or at the same position, due to dep parser defect)
 		// and doesn't have a clausal complement or the clausal complement isn't ["was","am","is","are","were"]
 		if(
 			interrogativeWTokens.indexOf(sentenceStartToken) > -1 && 
-			possibleAUXIndex > -1 && 
-			possibleAUXIndex < rootIndex &&
+			(possibleAUXIndex > -1 || rootTag === "VBD" || rootTag === "VBN") && 
+			(possibleAUXIndex < rootIndex || possibleAUXIndex === rootIndex) &&
 			((!rootClausalComplement) || beDerivatives.indexOf(rootClausalComplement.token) < 2)
 		){
 			result[sentenceIndex][0].confidence = result[sentenceIndex][0].confidence + 70;
@@ -144,10 +159,12 @@ export function sentenceType(this:Fin.FinReturn){
 		// before the personal pronoun:
 		//		- an auxVerbs
 		// 		- clausal complement
+
 		if(
 			personalPronouns.indexOf(sentenceEndToken) > -1 &&
-			auxVerbs.indexOf(sentenceBeforeEndToken) > -1 &&
-			sentenceBeforeEndLabel.endsWith("COMP")
+			((auxVerbs.indexOf(scndLastToken) > -1 && scndLastLabel.endsWith("COMP")) ||
+			// it might be "wasn't it"
+			(auxVerbs.indexOf(thrdLastToken) > -1 && thrdLastLabel.endsWith("COMP") && scndLastLabel === "ADVMOD"))
 		){
 			result[sentenceIndex][0].confidence = result[sentenceIndex][0].confidence + 70;
 		}
@@ -171,4 +188,4 @@ export function sentenceType(this:Fin.FinReturn){
 		}
 	});
 	return result;
-}
+};
