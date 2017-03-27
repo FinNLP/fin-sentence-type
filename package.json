@@ -1,6 +1,6 @@
 {
   "name": "fin-sentence-type",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Negation detection for FIN NLP",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
